@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DNE Dashboard</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f8fafc;color:#0f172a}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 20px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 16px 40px rgba(15,23,42,.08)}
+    .tabs{margin:16px 0 12px;display:flex;gap:8px;flex-wrap:wrap}
+    .tab{display:inline-block;padding:8px 12px;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;background:#fff}
+    .active{background:#0f172a;color:#fff;border-color:#0f172a}
+    .panel{display:none;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;box-shadow:0 16px 40px rgba(15,23,42,.08)}
+    .panel.active{display:block}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width: 900px){.grid{grid-template-columns:1fr}}
+    input,textarea,select,button{font:inherit}
+    input,textarea,select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:12px;margin:8px 0;background:#fff}
+    textarea{min-height:140px}
+    button{padding:9px 12px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;cursor:pointer}
+    .primary{background:#0f172a;color:#fff;border-color:#0f172a}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;vertical-align:top}
+    th{color:#475569;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .small-btn{padding:6px 10px}
+    .pagination{margin-top:10px;display:flex;justify-content:flex-end;gap:10px;align-items:center}
+    .modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal .box{background:#fff;padding:16px;border-radius:16px;width:min(800px,100%);box-shadow:0 30px 100px rgba(0,0,0,.25)}
+    .muted{color:#64748b}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1 style="margin:0 0 6px">DNE Dashboard</h1>
+      <div>Signed in as <strong>__EMAIL__</strong></div>
+    </div>
+    <div class="actions">
+      <a href="/api/logout"><button class="small-btn">Logout</button></a>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div id="tab-knowledge" class="tab active" onclick="show('knowledge')">Knowledge</div>
+    <div id="tab-users" class="tab" onclick="show('users')">Users</div>
+  </div>
+
+  <div id="panel-knowledge" class="panel active">
+    <div class="grid">
+      <div>
+        <h3>Create Knowledge</h3>
+        <form id="form-knowledge">
+          <input name="topic" placeholder="Topic" required>
+          <textarea name="content" id="content-input" placeholder="Content" required></textarea>
+          <input name="keywords" placeholder="keywords (comma separated)">
+          <button type="submit" class="primary">Create</button>
+        </form>
+      </div>
+      <div>
+        <h3 class="muted">Hints</h3>
+        <p class="muted">Keywords are matched by the bot during retrieval.</p>
+      </div>
+    </div>
+    <h3>Knowledge List</h3>
+    <div id="table-knowledge"></div>
+    <div id="pagination-knowledge" class="pagination"></div>
+  </div>
+
+  <div id="panel-users" class="panel" style="display:none">
+    <div class="grid">
+      <div>
+        <h3>Create User</h3>
+        <form id="form-user">
+          <input name="email" placeholder="Email" required>
+          <select name="role"><option value="admin">admin</option><option value="user">user</option></select>
+          <button type="submit" class="primary">Create User</button>
+        </form>
+      </div>
+      <div>
+        <h3 class="muted">Access</h3>
+        <p class="muted">Google login is allowed only for emails in authorized_users.</p>
+      </div>
+    </div>
+    <h3>Users</h3>
+    <div id="table-users"></div>
+    <div id="pagination-users" class="pagination"></div>
+  </div>
+
+  <div id="editor-modal" class="modal">
+    <div class="box">
+      <h3>Edit Knowledge</h3>
+      <input id="editor-topic" placeholder="Topic">
+      <div id="editor-content" contenteditable="true" style="min-height:150px;border:1px solid #cbd5e1;padding:10px;margin:8px 0;border-radius:12px"></div>
+      <input id="editor-keywords" placeholder="keywords (comma separated)">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="editor-cancel" type="button">Cancel</button>
+        <button id="editor-save" type="button" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentEditId = null;
+    const perPage = 10;
+    const lists = { knowledge: [], users: [] };
+    const currentPage = { knowledge: 1, users: 1 };
+
+    function show(name){
+      document.getElementById('panel-knowledge').style.display = name === 'knowledge' ? 'block' : 'none';
+      document.getElementById('panel-users').style.display = name === 'users' ? 'block' : 'none';
+      document.getElementById('tab-knowledge').classList.toggle('active', name === 'knowledge');
+      document.getElementById('tab-users').classList.toggle('active', name === 'users');
+    }
+
+    function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    async function load(resource){
+      const res = await fetch('/api/dashboard?type=' + resource, { credentials: 'include' });
+      const list = await res.json();
+      lists[resource] = Array.isArray(list) ? list : [];
+      currentPage[resource] = 1;
+      render(resource);
+    }
+
+    function render(resource){
+      const list = lists[resource] || [];
+      const page = currentPage[resource] || 1;
+      const start = (page - 1) * perPage;
+      const slice = list.slice(start, start + perPage);
+      const table = document.getElementById('table-' + resource);
+      const pagination = document.getElementById('pagination-' + resource);
+      if(resource === 'knowledge'){
+        let html = '<table><thead><tr><th>Topic</th><th>Content</th><th>Keywords</th><th>Actions</th></tr></thead><tbody>';
+        slice.forEach(function(it){
+          html += '<tr><td>' + escapeHtml(it.topic || '') + '</td><td>' + escapeHtml(String(it.content || '')).slice(0,200) + '</td><td>' + escapeHtml((it.keywords || []).join(',')) + '</td><td><div class="actions"><button onclick="openEditor(\'' + it._id + '\')">Edit</button><button onclick="deleteKnowledge(\'' + it._id + '\')">Delete</button></div></td></tr>';
+        });
+        html += '</tbody></table>';
+        table.innerHTML = html;
+      } else {
+        let html = '<table><thead><tr><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
+        slice.forEach(function(u){
+          html += '<tr><td>' + escapeHtml(u.email || '') + '</td><td>' + escapeHtml(u.role || '') + '</td><td><div class="actions"><button onclick="editUser(\'' + u._id + '\')">Edit</button><button onclick="deleteUser(\'' + u._id + '\')">Delete</button></div></td></tr>';
+        });
+        html += '</tbody></table>';
+        table.innerHTML = html;
+      }
+      const total = Math.max(1, Math.ceil(list.length / perPage));
+      pagination.innerHTML = '<button ' + (page <= 1 ? 'disabled' : '') + ' onclick="changePage(\'' + resource + '\',' + (page - 1) + ')">Prev</button> Page ' + page + ' of ' + total + ' <button ' + (page >= total ? 'disabled' : '') + ' onclick="changePage(\'' + resource + '\',' + (page + 1) + ')">Next</button>';
+    }
+
+    function changePage(resource,p){ currentPage[resource] = p; render(resource); }
+
+    async function createKnowledge(e){
+      e.preventDefault();
+      const f = e.target;
+      const data = { type: 'knowledge', topic: f.topic.value, content: document.getElementById('content-input').value, keywords: f.keywords.value.split(',').map(function(s){return s.trim();}).filter(Boolean) };
+      await fetch('/api/dashboard', { method:'POST', credentials: 'include', headers:{'content-type':'application/json'}, body: JSON.stringify(data) });
+      f.reset();
+      load('knowledge');
+    }
+
+    async function deleteKnowledge(id){ if(!confirm('Delete?')) return; await fetch('/api/dashboard', { method:'DELETE', credentials: 'include', headers:{'content-type':'application/json'}, body: JSON.stringify({ type:'knowledge', _id:id }) }); load('knowledge'); }
+
+    function openEditor(id){
+      currentEditId = id;
+      const item = lists.knowledge.find(function(x){return x._id === id}) || {};
+      document.getElementById('editor-topic').value = item.topic || '';
+      document.getElementById('editor-content').innerHTML = item.content || '';
+      document.getElementById('editor-keywords').value = (item.keywords || []).join(',');
+      document.getElementById('editor-modal').style.display = 'flex';
+    }
+
+    document.getElementById('editor-cancel').addEventListener('click', function(){ document.getElementById('editor-modal').style.display='none'; });
+    document.getElementById('editor-save').addEventListener('click', async function(){
+      const data = { type:'knowledge', _id: currentEditId, topic: document.getElementById('editor-topic').value, content: document.getElementById('editor-content').innerHTML, keywords: document.getElementById('editor-keywords').value.split(',').map(function(s){return s.trim();}).filter(Boolean) };
+      await fetch('/api/dashboard', { method:'PUT', credentials: 'include', headers:{'content-type':'application/json'}, body: JSON.stringify(data) });
+      document.getElementById('editor-modal').style.display='none';
+      load('knowledge');
+    });
+
+    async function createUser(e){ e.preventDefault(); const f = e.target; const data = { type:'users', email:f.email.value, role:f.role.value }; await fetch('/api/dashboard', { method:'POST', credentials: 'include', headers:{'content-type':'application/json'}, body: JSON.stringify(data) }); f.reset(); load('users'); }
+    async function editUser(id){ const newRole = prompt('New role (admin/user)'); if(!newRole) return; await fetch('/api/dashboard', { method:'PUT', credentials: 'include', headers:{'content-type':'application/json'}, body: JSON.stringify({ type:'users', _id:id, role:newRole }) }); load('users'); }
+    async function deleteUser(id){ if(!confirm('Delete user?')) return; await fetch('/api/dashboard', { method:'DELETE', credentials: 'include', headers:{'content-type':'application/json'}, body: JSON.stringify({ type:'users', _id:id }) }); load('users'); }
+
+    document.getElementById('form-knowledge').addEventListener('submit', createKnowledge);
+    document.getElementById('form-user').addEventListener('submit', createUser);
+    load('knowledge');
+    load('users');
+  </script>
+</body>
+</html>
