@@ -46,5 +46,6 @@ npm start
 ## Notes
 
 - The Node version keeps the original API shape so the Facebook webhook, admin dashboard, and bot commands can be swapped in without changing the external flow.
+- The Facebook callback URL can point to either `/webhook` or `/api/webhook`, but it must target the Node backend domain, not the frontend Vercel site.
 - Webhook signature verification is supported when `Facebook__AppSecret` is set.
 - The app fails fast on weak or missing `Auth__SessionSecret` values instead of silently booting with the old default.

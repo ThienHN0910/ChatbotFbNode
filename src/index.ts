@@ -63,8 +63,8 @@ app.post(['/dashboard', '/api/dashboard'], dashboardPostHandler);
 app.put(['/dashboard', '/api/dashboard'], dashboardPutHandler);
 app.delete(['/dashboard', '/api/dashboard'], dashboardDeleteHandler);
 
-app.get('/webhook', webhookVerifyHandler);
-app.post('/webhook', webhookSignatureGuard, webhookReceiveHandler);
+app.get(['/webhook', '/api/webhook'], webhookVerifyHandler);
+app.post(['/webhook', '/api/webhook'], webhookSignatureGuard, webhookReceiveHandler);
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof SyntaxError && 'body' in error) {
