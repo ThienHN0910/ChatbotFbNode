@@ -16,6 +16,7 @@ export class FacebookGraphService {
         'content-type': 'application/json'
       },
       body: JSON.stringify({
+        messaging_type: 'RESPONSE',
         recipient: { id: psid },
         message: { text }
       })
