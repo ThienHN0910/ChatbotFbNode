@@ -22,9 +22,21 @@ export class FacebookGraphService {
       })
     });
 
+    const responseText = await response.text();
+    let responseData: unknown = responseText;
+
+    if (responseText.length > 0) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = responseText;
+      }
+    }
+
+    console.log('CHI TIẾT PHẢN HỒI TỪ FB:', JSON.stringify(responseData));
+
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Facebook send message failed (${response.status}): ${errorBody}`);
+      console.error(`Facebook send message failed (${response.status}): ${responseText}`);
       throw new Error(`Facebook send message failed (${response.status})`);
     }
   }

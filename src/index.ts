@@ -429,7 +429,7 @@ function webhookSignatureGuard(req: Request, res: Response, next: NextFunction):
   next();
 }
 
-function webhookReceiveHandler(req: Request, res: Response): void {
+async function webhookReceiveHandler(req: Request, res: Response): Promise<void> {
   const payload = req.body as FacebookWebhookPayload | undefined;
   if (!payload) {
     res.sendStatus(400);
@@ -441,11 +441,11 @@ function webhookReceiveHandler(req: Request, res: Response): void {
     return;
   }
 
-  setImmediate(() => {
-    void botMessageProcessor.process(payload).catch((error) => {
-      console.error('Webhook background processing error', error);
-    });
-  });
+  try {
+    await botMessageProcessor.process(payload);
+  } catch (error) {
+    console.error('Webhook processing error', error);
+  }
 
   res.status(200).send('EVENT_RECEIVED');
 }
