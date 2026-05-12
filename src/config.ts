@@ -22,7 +22,7 @@ export function loadConfig(): AppConfig {
     },
     gemini: {
       apiKey: env('Gemini__ApiKey', ''),
-      model: env('Gemini__Model', 'gemini-3-flash-preview')
+      model: env('Gemini__Model', 'gemini-3.1-flash-lite')
     },
     webhook: {
       verifyToken: env('Webhook__VerifyToken', '')
