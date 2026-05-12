@@ -14,6 +14,7 @@ export const askCommandHandler: BotCommandHandler = {
     try {
       const contexts = await buildKnowledgeContexts(context, question);
       const systemPrompt = buildSystemPrompt(contexts, question);
+      context.logger.log('System Prompt:', systemPrompt);
       const answer = await context.gemini.generateAnswer(systemPrompt, contexts, question);
       await context.send(answer);
     } catch (error) {
