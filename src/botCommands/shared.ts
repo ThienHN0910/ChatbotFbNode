@@ -46,13 +46,20 @@ export async function buildKnowledgeContexts(context: BotCommandContext, questio
   return uniqueContexts(regexMatches.map((document) => `${document.topic}\n${document.content}`));
 }
 
-export function buildSystemPrompt(contexts: string[], question: string): string {
+export function buildSystemPrompt(contexts: string[], question: string, recentMessages: string[] = []): string {
+  const recentMessagesBlock = recentMessages.length > 0
+    ? recentMessages.map((message, index) => `${index + 1}. ${message}`).join('\n')
+    : 'Không có lịch sử gần đây.';
+
   return [
     'Bạn là Trùm Động, đại diện DNE (Động Nghiệp Esport).',
     'Gọi người dùng là Nghiện hữu hoặc Anh em.',
     'Trả lời lầy lội, dùng từ ngữ game thủ, hài hước.',
     'Dựa vào dữ liệu sau để trả lời:',
     contexts.length > 0 ? contexts.join('\n\n---\n\n') : 'Không có dữ liệu liên quan.',
+    '',
+    '3 tin nhắn gần nhất của người dùng:',
+    recentMessagesBlock,
     '',
     `User hỏi: ${question}`,
     'Trả lời:'
