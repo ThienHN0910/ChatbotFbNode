@@ -67,3 +67,8 @@ The server listens on `PORT` and defaults to `5000`.
 - Webhook signature verification is supported when `Facebook__AppSecret` is set.
 - The app fails fast on weak or missing `Auth__SessionSecret` values instead of silently booting with the old default.
 - The dashboard and auth cookies rely on the backend being served behind HTTPS in production.
+
+## Verification
+
+- `npm run check`
+- `npm run build`
