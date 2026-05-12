@@ -11,6 +11,7 @@ import { helpCommandHandler } from './botCommands/help.js';
 import { historyCommandHandler } from './botCommands/history.js';
 import { meCommandHandler } from './botCommands/me.js';
 import { memoryStatsCommandHandler } from './botCommands/memoryStats.js';
+import { pickCommandHandler } from './botCommands/pick.js';
 import { pingCommandHandler } from './botCommands/ping.js';
 import { randomCommandHandler } from './botCommands/random.js';
 import { timeCommandHandler } from './botCommands/time.js';
@@ -78,6 +79,7 @@ export function createDefaultBotCommandHandlers(): BotCommandHandler[] {
     pingCommandHandler,
     meCommandHandler,
     randomCommandHandler,
+    pickCommandHandler,
     facebookLinksCommandHandler,
     memoryStatsCommandHandler,
     historyCommandHandler,

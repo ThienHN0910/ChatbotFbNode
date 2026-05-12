@@ -5,8 +5,8 @@ export const helpCommandHandler: BotCommandHandler = {
   aliases: ['h', 'help'],
   async handle(context) {
     const helpLines = [
-      '/ask <question> - Hỏi Gemini (RAG + AI)',
       '/about - Thông tin nhanh về bot',
+      '/ask <question> - Hỏi Gemini (RAG + AI)',
       '/echo <text> - Nhại lại tin nhắn',
       '/time, /gio, /keo - Trả về giờ hệ thống (Asia/Ho_Chi_Minh)',
       '/uptime - Thời gian bot đã chạy',
@@ -14,6 +14,7 @@ export const helpCommandHandler: BotCommandHandler = {
       '/fb, /link - Trả về links của Động',
       '/me - Hiển thị tên Facebook và ID của bạn',
       '/random - Tỉ lệ ngẫu nhiên (0-100%) hoặc /random <min> <max>',
+      '/pick [-n <số lượng>] -l item1; item2; item3 - Chọn ngẫu nhiên trong danh sách',
       '/mem - Thống kê số người đã nhắn bot',
       '/top - Top gửi tin nhắn',
       '/history - Lịch sử 10 tin nhắn gần nhất',

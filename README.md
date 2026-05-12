@@ -8,7 +8,7 @@ This folder contains the Node.js rewrite of the old ASP.NET Core backend.
 - Dashboard CRUD for knowledge base and authorized users.
 - Google login for the dashboard with HttpOnly cookie session auth.
 - Bot command support is split into individual files under `src/botCommands`.
-- Current commands: `/ask`, `/about`, `/echo`, `/time`, `/uptime`, `/ping`, `/me`, `/fb`, `/link`, `/random`, `/mem`, `/top`, `/history`, `/help`.
+- Current commands: `/ask`, `/about`, `/echo`, `/time`, `/uptime`, `/ping`, `/me`, `/fb`, `/link`, `/random`, `/pick`, `/mem`, `/top`, `/history`, `/help`.
 
 ## Command Layout
 
@@ -23,6 +23,22 @@ Useful aliases:
 - `/up` for uptime
 - `/say` for echo
 - `/info` for about
+
+## Commands Overview
+
+### `/pick` - Random selection from list
+
+Picks one or more random items from a semicolon-separated list. Useful for group decisions.
+
+**Usage:**
+- `/pick -l item1; item2; item3` → picks 1 random item (default)
+- `/pick -n 2 -l ăn cơm; ăn bún; ăn chè; uống cà phê` → picks 2 random items without replacement
+
+**Parameters:**
+- `-l` (required): List of items separated by semicolons
+- `-n` (optional): Number of items to pick (default: 1)
+
+Example: `/pick -n 3 -l A; B; C; D; E` returns 3 random items
 
 ## Setup
 
