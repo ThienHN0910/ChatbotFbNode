@@ -47,14 +47,17 @@ export class BotMessageProcessor {
 
     let commandName = "";
     let args: string[] = [];
+    
     if (isCommand) {
       const parts = splitArgs(messageText);
       commandName = parts[0]?.slice(1) ?? "";
       args = parts.slice(1);
+      if (commandName === "ask") {
+        await this.storeMessage(senderId, messageText);
+      }
     } else {
-      commandName = "ask";
+      commandName = "h";
       args = splitArgs(messageText);
-      await this.storeMessage(senderId, messageText);
     }
 
     const context: BotCommandContext = {
@@ -80,12 +83,13 @@ export class BotMessageProcessor {
     senderId: string,
     messageText: string,
   ): Promise<void> {
-    if (!this.mongo.isConfigured) {
-      return;
-    }
+    if (!this.mongo.isConfigured) return;
 
     try {
-      const senderName = await this.facebook.getUserName(senderId);
+      const senderName = await this.facebook
+        .getUserName(senderId)
+        .catch(() => "Nghiện hữu ẩn danh");
+
       const messages = await this.mongo.getMessagesCollection();
       await messages.insertOne({
         senderId,
@@ -93,6 +97,7 @@ export class BotMessageProcessor {
         text: messageText,
         createdAt: new Date(),
       });
+      console.log("✅ Đã lưu câu hỏi vào DB");
     } catch (error) {
       console.warn("Failed to store incoming message", error);
     }
