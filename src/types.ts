@@ -27,6 +27,12 @@ export interface AppConfig {
   bot: {
     timeZoneId: string;
   };
+  openWeather: {
+    apiKey: string;
+    defaultLocation: string;
+    language: string;
+    units: 'standard' | 'metric' | 'imperial';
+  };
   auth: {
     googleClientId: string;
     googleClientSecret: string;

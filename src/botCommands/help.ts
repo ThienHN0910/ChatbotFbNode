@@ -9,6 +9,7 @@ export const helpCommandHandler: BotCommandHandler = {
       '/ask <question> - Hỏi Gemini (RAG + AI)',
       '/echo <text> - Nhại lại tin nhắn',
       '/time - Trả về giờ hệ thống (Asia/Ho_Chi_Minh)',
+      '/weather [day] [location] - Thời tiết hôm nay hoặc N ngày tới (mặc định Đà Nẵng)',
       '/uptime - Thời gian bot đã chạy',
       '/ping - Kiểm tra độ trễ',
       '/fb, /link - Trả về links của Động',

@@ -30,6 +30,12 @@ export function loadConfig(): AppConfig {
     bot: {
       timeZoneId: env('Bot__TimeZoneId', 'Asia/Ho_Chi_Minh')
     },
+    openWeather: {
+      apiKey: env('OpenWeather__ApiKey', ''),
+      defaultLocation: env('OpenWeather__DefaultLocation', 'Da Nang'),
+      language: env('OpenWeather__Language', 'vi'),
+      units: parseUnits(env('OpenWeather__Units', 'metric'))
+    },
     auth: {
       googleClientId: env('Auth__GoogleClientId', ''),
       googleClientSecret: env('Auth__GoogleClientSecret', ''),
@@ -48,6 +54,15 @@ function env(name: string, defaultValue: string): string {
 function parseInteger(value: string, defaultValue: number): number {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : defaultValue;
+}
+
+function parseUnits(value: string): 'standard' | 'metric' | 'imperial' {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'standard' || normalized === 'imperial') {
+    return normalized;
+  }
+
+  return 'metric';
 }
 
 function assertStrongSecret(secret: string, name: string): void {

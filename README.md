@@ -8,7 +8,7 @@ This folder contains the Node.js rewrite of the old ASP.NET Core backend.
 - Dashboard CRUD for knowledge base and authorized users.
 - Google login for the dashboard with HttpOnly cookie session auth.
 - Bot command support is split into individual files under `src/botCommands`.
-- Current commands: `/ask`, `/about`, `/echo`, `/time`, `/uptime`, `/ping`, `/me`, `/fb`, `/link`, `/random`, `/pick`, `/mem`, `/top`, `/history`, `/help`.
+- Current commands: `/ask`, `/about`, `/echo`, `/time`, `/weather`, `/uptime`, `/ping`, `/me`, `/fb`, `/link`, `/random`, `/pick`, `/mem`, `/top`, `/history`, `/help`.
 
 ## Command Layout
 
@@ -40,6 +40,20 @@ Picks one or more random items from a semicolon-separated list. Useful for group
 
 Example: `/pick -n 3 -l A; B; C; D; E` returns 3 random items
 
+### `/weather` - Weather by day and location
+
+Shows weather for today or forecast for N days later.
+
+**Usage:**
+- `/weather` → today at default location (`Da Nang`)
+- `/weather Hue` → today in Hue
+- `/weather 3 Hue` → forecast 3 days later in Hue
+- `/weather 7` → forecast 7 days later in default location
+
+**Parameters:**
+- `day` (optional): day offset from today, default `0`, max `7`
+- `location` (optional): city/location, default from `OpenWeather__DefaultLocation`
+
 ## Setup
 
 Copy `.env.example` to `.env` and fill in the secrets. The loader also accepts a `.env` file placed in a parent folder, so you can keep the same environment layout you used for the .NET app.
@@ -53,6 +67,7 @@ Important environment keys:
 - `Facebook__GraphApiVersion`
 - `Facebook__AppSecret`
 - `Gemini__ApiKey`
+- `OpenWeather__ApiKey`
 - `Webhook__VerifyToken`
 - `Auth__GoogleClientId`
 - `Auth__GoogleClientSecret`

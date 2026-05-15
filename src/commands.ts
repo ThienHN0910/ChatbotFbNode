@@ -17,6 +17,7 @@ import { randomCommandHandler } from './botCommands/random.js';
 import { timeCommandHandler } from './botCommands/time.js';
 import { topCommandHandler } from './botCommands/top.js';
 import { uptimeCommandHandler } from './botCommands/uptime.js';
+import { weatherCommandHandler } from './botCommands/weather.js';
 
 export interface BotCommandContext {
   senderId: string;
@@ -28,6 +29,7 @@ export interface BotCommandContext {
   gemini: GeminiService;
   facebookOptions: AppConfig['facebook'];
   botOptions: AppConfig['bot'];
+  weatherOptions: AppConfig['openWeather'];
   logger: Pick<Console, 'log' | 'warn' | 'error'>;
   send(text: string): Promise<void>;
 }
@@ -77,6 +79,7 @@ export function createDefaultBotCommandHandlers(): BotCommandHandler[] {
     echoCommandHandler,
     timeCommandHandler,
     pingCommandHandler,
+    weatherCommandHandler,
     meCommandHandler,
     randomCommandHandler,
     pickCommandHandler,

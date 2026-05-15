@@ -66,6 +66,7 @@ export class BotMessageProcessor {
       gemini: this.gemini,
       facebookOptions: this.config.facebook,
       botOptions: this.config.bot,
+      weatherOptions: this.config.openWeather,
       logger: console,
       send: async (text: string) => {
         await this.facebook.sendTextMessage(senderId, text);
