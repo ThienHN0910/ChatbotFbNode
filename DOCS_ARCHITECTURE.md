@@ -1,61 +1,103 @@
-# BotFacebook Architecture Notes
+# BotFacebook Node Architecture
 
 ## Overview
 
-This repository is split into two active application surfaces:
+`chatbotfbNode` is an Express + TypeScript backend that handles:
 
-- Vue 3 SPA frontend at `BotFacebook.Api/BotFacebook.Web`
-- ASP.NET Core 8.0 backend at `BotFacebook.Api/BotFacebook.Api`
+- Facebook webhook verification and event processing
+- Bot command dispatch (`src/botCommands`)
+- MongoDB persistence (knowledge, messages, authorized users)
+- Google OAuth session auth for dashboard access
+- JSON APIs for dashboard CRUD
 
-The original Node/Express source tree was removed from the repo root.
+Main entrypoint: `src/index.ts`
 
-## Frontend responsibilities
+## Runtime Components
 
-- Render the landing page, dashboard, policy page, and term page.
-- Call backend endpoints with `fetch` and `credentials: include`.
-- Use `VITE_API_BASE_URL` to point at the backend host.
-- If `VITE_API_BASE_URL` is omitted, the frontend uses relative `/api/...` URLs, which only works when the frontend is served from the same origin as the backend.
-- Redirect login/logout actions through backend auth endpoints.
+- `src/index.ts`
+: Bootstraps config, MongoDB context, services, auth flow, dashboard API routes, and webhook routes.
+- `src/services/botMessageProcessor.ts`
+: Parses incoming webhook messages, resolves command, dispatches handler, and controls message persistence.
+- `src/commands.ts`
+: Defines `BotCommandContext`, `BotCommandHandler`, and `BotCommandDispatcher`.
+- `src/botCommands/*.ts`
+: One file per command (`ask`, `weather`, `pick`, `history`, etc.).
+- `src/services/facebookGraphService.ts`
+: Facebook Graph API integration for send/get profile/page id.
+- `src/services/geminiService.ts`
+: Gemini answer generation.
+- `src/mongo.ts`
+: MongoDB connection/context provider.
 
-Key routes:
+## Command Set
 
-- `/` - product landing page
-- `/dashboard` - admin dashboard
-- `/policy` - privacy policy
-- `/term` - terms of service
+Current commands (primary):
 
-## Backend responsibilities
+- `/ask <question>`
+- `/weather [day] [location]` (today or max 5-day forecast)
+- `/pick [-n <count>] -l item1; item2; ...`
+- `/random [min] [max]`
+- `/time`, `/uptime`, `/ping`
+- `/about`, `/echo`, `/fb`, `/link`, `/me`
+- `/mem`, `/top`, `/history`
+- `/help` (`/h`)
 
-- Facebook webhook verification and event intake.
-- Bot message processing and command dispatch.
-- MongoDB access for knowledge base and authorized users.
-- Google OAuth callback and cookie session creation.
-- JSON CRUD API used by the Vue dashboard.
+Useful aliases include `/gio`, `/keo`, `/up`, `/say`, `/info`.
 
-Key backend endpoints:
+## Message Persistence Rules
 
-- `GET /webhook` - Facebook verification
-- `POST /webhook` - Facebook message receive
-- `GET /api/auth` - start Google OAuth
-- `GET /api/auth/callback` - OAuth callback
-- `GET /api/dashboard` - dashboard data
-- `POST /api/dashboard` - create dashboard records
-- `PUT /api/dashboard` - update dashboard records
-- `DELETE /api/dashboard` - delete dashboard records
-- `GET /api/logout` - clear cookies and redirect back to the frontend
+Current persistence behavior in `src/services/botMessageProcessor.ts`:
 
-## Configuration
+- Only user messages for `/ask` are stored.
+- Only bot replies produced in `/ask` flow are stored.
+- Other commands do not write to `messages` collection.
 
-Backend config is split between `appsettings.json` and environment variables.
+## Weather Flow
 
-Important values:
+`/weather` command (`src/botCommands/weather.ts`):
+
+- Current weather: `GET /data/2.5/weather?q=...`
+- Forecast: `GET /data/2.5/forecast?q=...`
+- Day offset limit: max `5`
+- Default location from `OpenWeather__DefaultLocation`
+
+## HTTP Surface
+
+Public/auth routes:
+
+- `GET /health`
+- `GET /api/auth`
+- `GET /api/auth/callback`
+- `GET /api/logout`
+
+Dashboard routes:
+
+- `GET /api/dashboard`
+- `POST /api/dashboard`
+- `PUT /api/dashboard`
+- `DELETE /api/dashboard`
+
+Webhook routes:
+
+- `GET /webhook` and `GET /api/webhook`
+- `POST /webhook` and `POST /api/webhook`
+
+## Environment Configuration
+
+Core variables:
 
 - `Mongo__ConnectionString`
 - `Mongo__DatabaseName`
 - `Facebook__PageAccessToken`
 - `Facebook__PageId`
 - `Facebook__GraphApiVersion`
+- `Facebook__AppSecret`
 - `Gemini__ApiKey`
+- `Gemini__Model`
+- `OpenWeather__ApiKey`
+- `OpenWeather__DefaultLocation`
+- `OpenWeather__Language`
+- `OpenWeather__Units`
 - `Webhook__VerifyToken`
 - `Auth__GoogleClientId`
 - `Auth__GoogleClientSecret`
@@ -63,34 +105,13 @@ Important values:
 - `Auth__FrontendBaseUrl`
 - `Auth__SessionSecret`
 
-Frontend config:
+See `.env.example` for template values.
 
-- `VITE_API_BASE_URL`
-- See `BotFacebook.Api/BotFacebook.Web/.env.example` for the frontend sample file.
+## Build and Run
 
-## Runtime flow
-
-1. User opens the Vue app.
-2. Dashboard calls backend JSON endpoints.
-3. If the session is missing, the frontend shows a Google login button.
-4. Google OAuth returns to the backend callback.
-5. Backend validates the email against MongoDB, sets the cookie session, and redirects to the Vue `/dashboard` route.
-6. The Vue dashboard reloads data using the authenticated cookie.
-
-## Build checks
-
-- Backend: `dotnet build BotFacebook.Api/BotFacebook.Api.sln -c Release`
-- Frontend: `cd BotFacebook.Api/BotFacebook.Web && npm run build`
-
-## Deployment notes
-
-- Keep the frontend origin in `Auth__FrontendBaseUrl` so login redirects and CORS stay aligned.
-- If the backend and frontend are deployed separately, the Vue app must point `VITE_API_BASE_URL` at the backend host.
-- The frontend does not replace the webhook endpoint. The webhook still lives in ASP.NET Core.
-- Current production hosts:
-	- Frontend: `https://chat-bot-fb-lime.vercel.app`
-	- Backend: `https://chatbotfb-production.up.railway.app`
-- Smoke test after deploy:
-	- `GET /` on Railway should return the API health payload.
-	- `GET /api/auth` on Railway should redirect to Google, not 404.
-	- `GET /api/dashboard` without a cookie should return 401, not 404.
+```bash
+npm install
+npm run dev
+npm run build
+npm start
+```

@@ -48,10 +48,10 @@ Shows weather for today or forecast for N days later.
 - `/weather` → today at default location (`Da Nang`)
 - `/weather Hue` → today in Hue
 - `/weather 3 Hue` → forecast 3 days later in Hue
-- `/weather 7` → forecast 7 days later in default location
+- `/weather 5` → forecast 5 days later in default location
 
 **Parameters:**
-- `day` (optional): day offset from today, default `0`, max `7`
+- `day` (optional): day offset from today, default `0`, max `5`
 - `location` (optional): city/location, default from `OpenWeather__DefaultLocation`
 
 ## Setup
@@ -98,6 +98,7 @@ The server listens on `PORT` and defaults to `5000`.
 - Webhook signature verification is supported when `Facebook__AppSecret` is set.
 - The app fails fast on weak or missing `Auth__SessionSecret` values instead of silently booting with the old default.
 - The dashboard and auth cookies rely on the backend being served behind HTTPS in production.
+- Message history persistence is intentionally scoped: only user `/ask` messages and bot replies in `/ask` flow are stored in MongoDB.
 
 ## Verification
 

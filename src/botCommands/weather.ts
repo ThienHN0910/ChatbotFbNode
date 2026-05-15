@@ -8,10 +8,6 @@ interface ParsedWeatherRequest {
 }
 
 interface CurrentWeatherResponse {
-  coord?: {
-    lat?: number;
-    lon?: number;
-  };
   name?: string;
   sys?: {
     country?: string;
@@ -32,20 +28,47 @@ interface CurrentWeatherResponse {
   };
 }
 
-interface OneCallResponse {
-  daily?: Array<{
-    dt?: number;
-    temp?: {
-      day?: number;
-      min?: number;
-      max?: number;
-    };
+interface ForecastListItem {
+  dt?: number;
+  main?: {
+    temp?: number;
+    temp_min?: number;
+    temp_max?: number;
+    feels_like?: number;
     humidity?: number;
-    wind_speed?: number;
-    weather?: Array<{
-      description?: string;
-    }>;
+  };
+  weather?: Array<{
+    description?: string;
   }>;
+  wind?: {
+    speed?: number;
+  };
+  pop?: number;
+  rain?: {
+    '3h'?: number;
+  };
+}
+
+interface ForecastResponse {
+  list?: ForecastListItem[];
+  city?: {
+    name?: string;
+    country?: string;
+    timezone?: number;
+  };
+}
+
+interface DailyForecastSummary {
+  dt?: number;
+  temp?: number;
+  tempMin?: number;
+  tempMax?: number;
+  feelsLike?: number;
+  humidity?: number;
+  windSpeed?: number;
+  description?: string;
+  pop?: number;
+  rain3h?: number;
 }
 
 export const weatherCommandHandler: BotCommandHandler = {
@@ -59,8 +82,8 @@ export const weatherCommandHandler: BotCommandHandler = {
     }
 
     const request = parseWeatherArgs(context.args, options.defaultLocation);
-    if (request.dayOffset > 7) {
-      await context.send('Hiện tại chỉ hỗ trợ xem tối đa 7 ngày tới. Ví dụ: /weather 7 Hue');
+    if (request.dayOffset > 5) {
+      await context.send('Hiện tại chỉ hỗ trợ xem tối đa 5 ngày tới. Ví dụ: /weather 5 Hue');
       return;
     }
 
@@ -73,21 +96,15 @@ export const weatherCommandHandler: BotCommandHandler = {
         return;
       }
 
-      const latitude = current.coord?.lat;
-      const longitude = current.coord?.lon;
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        await context.send(`Không tìm thấy địa điểm: ${request.location}`);
-        return;
-      }
-
-      const oneCall = await fetchOneCallDaily(latitude as number, longitude as number, options.apiKey, options.units, options.language);
-      const dayForecast = oneCall.daily?.[request.dayOffset];
+      const forecast = await fetchFiveDayForecast(request.location, options.apiKey, options.units, options.language);
+      const dayForecast = getDailyForecastSummary(forecast, request.dayOffset);
       if (!dayForecast) {
         await context.send('Không có dữ liệu dự báo cho ngày bạn yêu cầu. Thử giảm số ngày, ví dụ /weather 3 Hue');
         return;
       }
 
-      await context.send(formatForecastMessage(locationLabel, request.dayOffset, dayForecast, options.units));
+      const forecastLocation = formatLocationFromForecast(forecast, locationLabel);
+      await context.send(formatForecastMessage(forecastLocation, request.dayOffset, dayForecast, options.units));
     } catch (error) {
       if (error instanceof OpenWeatherHttpError && error.status === 404) {
         await context.send(`Không tìm thấy địa điểm: ${request.location}`);
@@ -136,20 +153,19 @@ async function fetchCurrentWeather(
   return (await response.json()) as CurrentWeatherResponse;
 }
 
-async function fetchOneCallDaily(
-  latitude: number,
-  longitude: number,
+async function fetchFiveDayForecast(
+  locationQuery: string,
   apiKey: string,
   units: WeatherUnits,
   language: string
-): Promise<OneCallResponse> {
-  const requestUrl = `https://api.openweathermap.org/data/3.0/onecall?lat=${encodeURIComponent(String(latitude))}&lon=${encodeURIComponent(String(longitude))}&appid=${encodeURIComponent(apiKey)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(language)}&exclude=minutely,hourly,alerts,current`;
+): Promise<ForecastResponse> {
+  const requestUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(locationQuery)}&appid=${encodeURIComponent(apiKey)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(language)}`;
   const response = await fetch(requestUrl);
   if (!response.ok) {
-    throw new OpenWeatherHttpError(`OpenWeather onecall failed (${response.status})`, response.status);
+    throw new OpenWeatherHttpError(`OpenWeather forecast failed (${response.status})`, response.status);
   }
 
-  return (await response.json()) as OneCallResponse;
+  return (await response.json()) as ForecastResponse;
 }
 
 function formatCurrentWeatherMessage(locationLabel: string, data: CurrentWeatherResponse, units: WeatherUnits): string {
@@ -179,29 +195,107 @@ function formatCurrentWeatherMessage(locationLabel: string, data: CurrentWeather
 function formatForecastMessage(
   locationLabel: string,
   dayOffset: number,
-  day: NonNullable<OneCallResponse['daily']>[number],
+  day: DailyForecastSummary,
   units: WeatherUnits
 ): string {
   const dateLabel = formatDate(day.dt);
-  const tempDay = formatTemperature(day.temp?.day, units);
-  const tempMin = formatTemperature(day.temp?.min, units);
-  const tempMax = formatTemperature(day.temp?.max, units);
+  const temp = formatTemperature(day.temp, units);
+  const tempMin = formatTemperature(day.tempMin, units);
+  const tempMax = formatTemperature(day.tempMax, units);
+  const feelsLike = formatTemperature(day.feelsLike, units);
   const humidity = Number.isFinite(day.humidity) ? `${day.humidity}%` : 'N/A';
-  const wind = formatWind(day.wind_speed, units);
-  const desc = sentenceCase(day.weather?.[0]?.description ?? 'không rõ');
+  const wind = formatWind(day.windSpeed, units);
+  const desc = sentenceCase(day.description ?? 'không rõ');
+  const rainChance = Number.isFinite(day.pop) ? `${Math.round((day.pop as number) * 100)}%` : 'N/A';
+  const rain3h = Number.isFinite(day.rain3h) ? `${(day.rain3h as number).toFixed(2)} mm` : null;
 
-  return [
+  const lines = [
     `Dự báo sau ${dayOffset} ngày tại ${locationLabel} (${dateLabel}):`,
     `- Mô tả: ${desc}`,
-    `- Nhiệt độ: ${tempDay} (thấp nhất ${tempMin}, cao nhất ${tempMax})`,
+    `- Nhiệt độ: ${temp} (thấp nhất ${tempMin}, cao nhất ${tempMax})`,
+    `- Cảm giác như: ${feelsLike}`,
     `- Độ ẩm: ${humidity}`,
-    `- Gió: ${wind}`
-  ].join('\n');
+    `- Gió: ${wind}`,
+    `- Xác suất mưa: ${rainChance}`
+  ];
+
+  if (rain3h) {
+    lines.push(`- Lượng mưa 3h: ${rain3h}`);
+  }
+
+  return lines.join('\n');
+}
+
+function getDailyForecastSummary(forecast: ForecastResponse, dayOffset: number): DailyForecastSummary | null {
+  const items = forecast.list ?? [];
+  if (items.length === 0) {
+    return null;
+  }
+
+  const timezoneOffsetSeconds = forecast.city?.timezone ?? 0;
+  const nowUnix = Math.floor(Date.now() / 1000);
+  const targetDateKey = toDateKey(nowUnix + dayOffset * 86400, timezoneOffsetSeconds);
+  const sameDayItems = items.filter((item) => {
+    if (!Number.isFinite(item.dt)) {
+      return false;
+    }
+
+    return toDateKey(item.dt as number, timezoneOffsetSeconds) === targetDateKey;
+  });
+
+  if (sameDayItems.length === 0) {
+    return null;
+  }
+
+  const representative = pickClosestToNoon(sameDayItems, timezoneOffsetSeconds);
+  const tempValues = sameDayItems
+    .flatMap((item) => [item.main?.temp_min, item.main?.temp_max, item.main?.temp])
+    .filter((value): value is number => Number.isFinite(value));
+
+  return {
+    dt: representative.dt,
+    temp: representative.main?.temp,
+    tempMin: tempValues.length > 0 ? Math.min(...tempValues) : undefined,
+    tempMax: tempValues.length > 0 ? Math.max(...tempValues) : undefined,
+    feelsLike: representative.main?.feels_like,
+    humidity: representative.main?.humidity,
+    windSpeed: representative.wind?.speed,
+    description: representative.weather?.[0]?.description,
+    pop: representative.pop,
+    rain3h: representative.rain?.['3h']
+  };
+}
+
+function pickClosestToNoon(items: ForecastListItem[], timezoneOffsetSeconds: number): ForecastListItem {
+  return items.reduce((best, current) => {
+    const bestHourDistance = Math.abs(getLocalHour(best.dt, timezoneOffsetSeconds) - 12);
+    const currentHourDistance = Math.abs(getLocalHour(current.dt, timezoneOffsetSeconds) - 12);
+    return currentHourDistance < bestHourDistance ? current : best;
+  });
+}
+
+function getLocalHour(unixSeconds: number | undefined, timezoneOffsetSeconds: number): number {
+  if (!Number.isFinite(unixSeconds)) {
+    return 24;
+  }
+
+  return new Date(((unixSeconds as number) + timezoneOffsetSeconds) * 1000).getUTCHours();
+}
+
+function toDateKey(unixSeconds: number, timezoneOffsetSeconds: number): string {
+  return new Date((unixSeconds + timezoneOffsetSeconds) * 1000).toISOString().slice(0, 10);
 }
 
 function formatLocationFromCurrent(current: CurrentWeatherResponse, fallback: string): string {
   const city = current.name?.trim();
   const country = current.sys?.country?.trim();
+  const composed = [city, country].filter(Boolean).join(', ');
+  return composed.length > 0 ? composed : fallback;
+}
+
+function formatLocationFromForecast(forecast: ForecastResponse, fallback: string): string {
+  const city = forecast.city?.name?.trim();
+  const country = forecast.city?.country?.trim();
   const composed = [city, country].filter(Boolean).join(', ');
   return composed.length > 0 ? composed : fallback;
 }
