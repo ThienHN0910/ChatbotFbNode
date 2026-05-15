@@ -19,7 +19,7 @@ This folder contains the Node.js rewrite of the old ASP.NET Core backend.
 Useful aliases:
 
 - `/h` for help
-- `/gio` and `/keo` for time
+- `/time` for time
 - `/up` for uptime
 - `/say` for echo
 - `/info` for about
