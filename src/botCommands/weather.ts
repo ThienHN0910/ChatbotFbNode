@@ -7,17 +7,18 @@ interface ParsedWeatherRequest {
   location: string;
 }
 
-interface GeoLocation {
-  name: string;
-  state?: string;
-  country?: string;
-  lat: number;
-  lon: number;
-}
-
 interface CurrentWeatherResponse {
+  coord?: {
+    lat?: number;
+    lon?: number;
+  };
+  name?: string;
+  sys?: {
+    country?: string;
+  };
   main?: {
     temp?: number;
+    feels_like?: number;
     humidity?: number;
   };
   wind?: {
@@ -26,6 +27,9 @@ interface CurrentWeatherResponse {
   weather?: Array<{
     description?: string;
   }>;
+  rain?: {
+    '1h'?: number;
+  };
 }
 
 interface OneCallResponse {
@@ -61,27 +65,35 @@ export const weatherCommandHandler: BotCommandHandler = {
     }
 
     try {
-    //   const location = await geocodeLocation(request.location, options.apiKey);
-    //   if (!location) {
-    //     await context.send(`Không tìm thấy địa điểm: ${request.location}`);
-    //     return;
-    //   }
+      const current = await fetchCurrentWeather(request.location, options.apiKey, options.units, options.language);
+      const locationLabel = formatLocationFromCurrent(current, request.location);
 
       if (request.dayOffset === 0) {
-        const current = await fetchCurrentWeather(location, options.apiKey, options.units, options.language);
-        await context.send(formatCurrentWeatherMessage(location, current, options.units));
+        await context.send(formatCurrentWeatherMessage(locationLabel, current, options.units));
         return;
       }
 
-      const oneCall = await fetchOneCallDaily(location, options.apiKey, options.units, options.language);
+      const latitude = current.coord?.lat;
+      const longitude = current.coord?.lon;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        await context.send(`Không tìm thấy địa điểm: ${request.location}`);
+        return;
+      }
+
+      const oneCall = await fetchOneCallDaily(latitude as number, longitude as number, options.apiKey, options.units, options.language);
       const dayForecast = oneCall.daily?.[request.dayOffset];
       if (!dayForecast) {
         await context.send('Không có dữ liệu dự báo cho ngày bạn yêu cầu. Thử giảm số ngày, ví dụ /weather 3 Hue');
         return;
       }
 
-      await context.send(formatForecastMessage(location, request.dayOffset, dayForecast, options.units));
+      await context.send(formatForecastMessage(locationLabel, request.dayOffset, dayForecast, options.units));
     } catch (error) {
+      if (error instanceof OpenWeatherHttpError && error.status === 404) {
+        await context.send(`Không tìm thấy địa điểm: ${request.location}`);
+        return;
+      }
+
       context.logger.error('weather error', error);
       await context.send('Không lấy được dữ liệu thời tiết lúc này, bạn thử lại sau nhé.');
     }
@@ -109,69 +121,63 @@ function parseWeatherArgs(args: string[], defaultLocation: string): ParsedWeathe
   };
 }
 
-async function geocodeLocation(query: string, apiKey: string): Promise<GeoLocation | null> {
-  const requestUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${encodeURIComponent(apiKey)}`;
-  const response = await fetch(requestUrl);
-  if (!response.ok) {
-    throw new Error(`OpenWeather geocode failed (${response.status})`);
-  }
-
-  const data = (await response.json()) as GeoLocation[];
-  const first = data[0];
-  if (!first) {
-    return null;
-  }
-
-  return first;
-}
-
 async function fetchCurrentWeather(
-  location: GeoLocation,
+  locationQuery: string,
   apiKey: string,
   units: WeatherUnits,
   language: string
 ): Promise<CurrentWeatherResponse> {
-  const requestUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${encodeURIComponent(String(location.lat))}&lon=${encodeURIComponent(String(location.lon))}&appid=${encodeURIComponent(apiKey)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(language)}`;
+  const requestUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(locationQuery)}&appid=${encodeURIComponent(apiKey)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(language)}`;
   const response = await fetch(requestUrl);
   if (!response.ok) {
-    throw new Error(`OpenWeather current weather failed (${response.status})`);
+    throw new OpenWeatherHttpError(`OpenWeather current weather failed (${response.status})`, response.status);
   }
 
   return (await response.json()) as CurrentWeatherResponse;
 }
 
 async function fetchOneCallDaily(
-  location: GeoLocation,
+  latitude: number,
+  longitude: number,
   apiKey: string,
   units: WeatherUnits,
   language: string
 ): Promise<OneCallResponse> {
-  const requestUrl = `https://api.openweathermap.org/data/3.0/onecall?lat=${encodeURIComponent(String(location.lat))}&lon=${encodeURIComponent(String(location.lon))}&appid=${encodeURIComponent(apiKey)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(language)}&exclude=minutely,hourly,alerts,current`;
+  const requestUrl = `https://api.openweathermap.org/data/3.0/onecall?lat=${encodeURIComponent(String(latitude))}&lon=${encodeURIComponent(String(longitude))}&appid=${encodeURIComponent(apiKey)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(language)}&exclude=minutely,hourly,alerts,current`;
   const response = await fetch(requestUrl);
   if (!response.ok) {
-    throw new Error(`OpenWeather onecall failed (${response.status})`);
+    throw new OpenWeatherHttpError(`OpenWeather onecall failed (${response.status})`, response.status);
   }
 
   return (await response.json()) as OneCallResponse;
 }
 
-function formatCurrentWeatherMessage(location: GeoLocation, data: CurrentWeatherResponse, units: WeatherUnits): string {
+function formatCurrentWeatherMessage(locationLabel: string, data: CurrentWeatherResponse, units: WeatherUnits): string {
   const temp = formatTemperature(data.main?.temp, units);
+  const feelsLike = formatTemperature(data.main?.feels_like, units);
   const humidity = Number.isFinite(data.main?.humidity) ? `${data.main?.humidity}%` : 'N/A';
   const wind = formatWind(data.wind?.speed, units);
-  const desc = data.weather?.[0]?.description ?? 'không rõ';
+  const desc = sentenceCase(data.weather?.[0]?.description ?? 'không rõ');
+  const rain1h = Number.isFinite(data.rain?.['1h']) ? `${(data.rain?.['1h'] as number).toFixed(2)} mm` : null;
 
-  return [
-    `Thời tiết hôm nay tại ${formatLocation(location)}:`,
+  const lines = [
+    `Thời tiết hôm nay tại ${locationLabel}:`,
     `- Mô tả: ${desc}`,
     `- Nhiệt độ: ${temp}`,
+    `- Cảm giác như: ${feelsLike}`,
     `- Độ ẩm: ${humidity}`,
     `- Gió: ${wind}`
-  ].join('\n');
+  ];
+
+  if (rain1h) {
+    lines.push(`- Lượng mưa 1h: ${rain1h}`);
+  }
+
+  return lines.join('\n');
 }
 
 function formatForecastMessage(
-  location: GeoLocation,
+  locationLabel: string,
   dayOffset: number,
   day: NonNullable<OneCallResponse['daily']>[number],
   units: WeatherUnits
@@ -182,10 +188,10 @@ function formatForecastMessage(
   const tempMax = formatTemperature(day.temp?.max, units);
   const humidity = Number.isFinite(day.humidity) ? `${day.humidity}%` : 'N/A';
   const wind = formatWind(day.wind_speed, units);
-  const desc = day.weather?.[0]?.description ?? 'không rõ';
+  const desc = sentenceCase(day.weather?.[0]?.description ?? 'không rõ');
 
   return [
-    `Dự báo sau ${dayOffset} ngày tại ${formatLocation(location)} (${dateLabel}):`,
+    `Dự báo sau ${dayOffset} ngày tại ${locationLabel} (${dateLabel}):`,
     `- Mô tả: ${desc}`,
     `- Nhiệt độ: ${tempDay} (thấp nhất ${tempMin}, cao nhất ${tempMax})`,
     `- Độ ẩm: ${humidity}`,
@@ -193,8 +199,11 @@ function formatForecastMessage(
   ].join('\n');
 }
 
-function formatLocation(location: GeoLocation): string {
-  return [location.name, location.state, location.country].filter(Boolean).join(', ');
+function formatLocationFromCurrent(current: CurrentWeatherResponse, fallback: string): string {
+  const city = current.name?.trim();
+  const country = current.sys?.country?.trim();
+  const composed = [city, country].filter(Boolean).join(', ');
+  return composed.length > 0 ? composed : fallback;
 }
 
 function formatDate(unixSeconds: number | undefined): string {
@@ -222,4 +231,20 @@ function formatWind(value: number | undefined, units: WeatherUnits): string {
   const normalized = value as number;
   const suffix = units === 'imperial' ? 'mph' : 'm/s';
   return `${normalized.toFixed(1)} ${suffix}`;
+}
+
+function sentenceCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 'Không rõ';
+  }
+
+  return `${trimmed[0].toUpperCase()}${trimmed.slice(1)}`;
+}
+
+class OpenWeatherHttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'OpenWeatherHttpError';
+  }
 }
