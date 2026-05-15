@@ -61,11 +61,11 @@ export const weatherCommandHandler: BotCommandHandler = {
     }
 
     try {
-      const location = await geocodeLocation(request.location, options.apiKey);
-      if (!location) {
-        await context.send(`Không tìm thấy địa điểm: ${request.location}`);
-        return;
-      }
+    //   const location = await geocodeLocation(request.location, options.apiKey);
+    //   if (!location) {
+    //     await context.send(`Không tìm thấy địa điểm: ${request.location}`);
+    //     return;
+    //   }
 
       if (request.dayOffset === 0) {
         const current = await fetchCurrentWeather(location, options.apiKey, options.units, options.language);
