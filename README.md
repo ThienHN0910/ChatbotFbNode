@@ -26,6 +26,17 @@ Useful aliases:
 
 ## Commands Overview
 
+### `/ask` - Two-stage AI retrieval from MongoDB
+
+`/ask` now runs in 2 phases to reduce token usage and improve context accuracy:
+
+- Bot sends an immediate waiting message: AI is searching for documents.
+- Phase 1 (planner): send Gemini the user question, 3 recent user ask messages, and only knowledge metadata (`id`, `topic`, `keywords`).
+- If planner says data is enough, bot returns answer immediately.
+- If planner requests more context, backend loads only requested knowledge documents from MongoDB and calls Gemini again for the final answer.
+
+This keeps responses fast while still allowing deep answers when needed.
+
 ### `/pick` - Random selection from list
 
 Picks one or more random items from a semicolon-separated list. Useful for group decisions.

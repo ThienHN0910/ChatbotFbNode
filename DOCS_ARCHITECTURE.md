@@ -25,7 +25,7 @@ Main entrypoint: `src/index.ts`
 - `src/services/facebookGraphService.ts`
 : Facebook Graph API integration for send/get profile/page id.
 - `src/services/geminiService.ts`
-: Gemini answer generation.
+: Gemini planner + answer generation.
 - `src/mongo.ts`
 : MongoDB connection/context provider.
 
@@ -51,6 +51,20 @@ Current persistence behavior in `src/services/botMessageProcessor.ts`:
 - Only user messages for `/ask` are stored.
 - Only bot replies produced in `/ask` flow are stored.
 - Other commands do not write to `messages` collection.
+
+## `/ask` Two-Stage Retrieval Flow
+
+`/ask` command (`src/botCommands/ask.ts`) uses a staged Mongo + Gemini flow:
+
+1. Send a waiting message to user (AI is searching docs).
+2. Load 3 recent ask messages from `messages` collection.
+3. Load candidate knowledge metadata from `knowledge_base` (`_id`, `topic`, `keywords`) based on token matching.
+4. Ask Gemini planner to decide:
+	- answer immediately, or
+	- request additional knowledge by id/topic.
+5. If requested, load full knowledge documents by selected ids and call Gemini again for the final response.
+
+This architecture minimizes unnecessary context payload while preserving deep-answer capability when extra knowledge is needed.
 
 ## Weather Flow
 
