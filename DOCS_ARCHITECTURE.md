@@ -12,6 +12,12 @@
 
 Main entrypoint: `src/index.ts`
 
+## Boundary With Frontend Repo
+
+- Backend repository (`chatbotfbNode`) owns webhook, AI pipeline, auth/session issuance, and database access.
+- Frontend repository (`chatbotfbweb`) only consumes backend APIs and renders UI.
+- Any `/ask` behavior changes are implemented in backend command/services, not frontend code.
+
 ## Runtime Components
 
 - `src/index.ts`

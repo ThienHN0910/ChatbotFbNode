@@ -2,6 +2,17 @@
 
 This folder contains the Node.js rewrite of the old ASP.NET Core backend.
 
+## Project Role In 2-Repo Setup
+
+`chatbotfbNode` is the runtime core of the platform:
+
+- Receives Facebook webhook events and sends bot replies.
+- Hosts auth and dashboard APIs used by the Vue frontend.
+- Stores operational data in MongoDB.
+- Calls Gemini for AI answer generation.
+
+The frontend repo (`chatbotfbweb`) does not replace this runtime role. It only consumes backend APIs.
+
 ## What it does
 
 - Facebook webhook verification and message receive flow.
@@ -110,6 +121,16 @@ The server listens on `PORT` and defaults to `5000`.
 - The app fails fast on weak or missing `Auth__SessionSecret` values instead of silently booting with the old default.
 - The dashboard and auth cookies rely on the backend being served behind HTTPS in production.
 - Message history persistence is intentionally scoped: only user `/ask` messages and bot replies in `/ask` flow are stored in MongoDB.
+
+## End-to-End Integration Summary
+
+- Facebook users chat with the bot through backend webhook routes.
+- Admin users manage knowledge and authorized users through the Vue frontend.
+- Frontend calls backend `/api/*` endpoints with cookie-based auth.
+- Backend uses MongoDB collections:
+	- `knowledge_base`
+	- `messages`
+	- `authorized_users`
 
 ## Verification
 
