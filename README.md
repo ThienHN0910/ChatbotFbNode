@@ -1,6 +1,11 @@
 # BotFacebook Node
 
-This folder contains the Node.js rewrite of the old ASP.NET Core backend.
+[![Case Study](https://img.shields.io/badge/Case_Study-Smart_Facebook_Bot-007ACC?style=flat-square&logo=vercel)](https://thienhn0910.vercel.app/projects/geminipowered-smart-facebook-chatbot-system)
+[![Blog](https://img.shields.io/badge/Blog-Webhooks_vs_Telegram-orange?style=flat-square)](https://thienhn0910.vercel.app/blog/bot-engineering-showdown-facebook-webhooks-vs-telegram-api)
+[![Author](https://img.shields.io/badge/Author-thienhn0910-4FC08D?style=flat-square)](https://thienhn0910.vercel.app/)
+
+Node.js rewrite of the Facebook Messenger Bot backend, powered by Google Gemini AI & MongoDB.  
+Một phần trong hệ sinh thái [Gemini-Powered Smart Facebook Chatbot System](https://thienhn0910.vercel.app/projects/geminipowered-smart-facebook-chatbot-system) phát triển bởi [Thien Nguyen](https://thienhn0910.vercel.app/).
 
 ## Project Role In 2-Repo Setup
 
@@ -136,3 +141,11 @@ The server listens on `PORT` and defaults to `5000`.
 
 - `npm run check`
 - `npm run build`
+
+## 🌐 Case Study & Technical Insights
+
+Dự án này là thành phần backend trong hệ thống chatbot Facebook thông minh:
+- 📌 **Chi tiết Case Study dự án**: [Gemini-Powered Smart Facebook Chatbot System](https://thienhn0910.vercel.app/projects/geminipowered-smart-facebook-chatbot-system)
+- 📖 **Bài viết so sánh kiến trúc**: [Bot Engineering Showdown: Facebook Webhooks vs Telegram API](https://thienhn0910.vercel.app/blog/bot-engineering-showdown-facebook-webhooks-vs-telegram-api)
+- 👨‍💻 **Portfolio tác giả**: [thienhn0910.vercel.app](https://thienhn0910.vercel.app/)
+- 🚀 **Khám phá thêm dự án khác**: [Portfolio Projects Showcase](https://thienhn0910.vercel.app/projects)
